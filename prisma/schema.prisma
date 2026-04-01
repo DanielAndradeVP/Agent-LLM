@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum VideoStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  title       String
+  price       String
+  salesCount  Int
+  productUrl  String      @unique
+  imageUrl    String
+  description String
+  videoStatus VideoStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+}
