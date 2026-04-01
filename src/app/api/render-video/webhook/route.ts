@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { completeRenderFromWebhook } from "../../../../lib/videoGenerator";
+import { getConfigValue } from "../../../../lib/runtimeConfig";
 
 type CreatomateWebhookPayload = {
     id?: string;
@@ -9,26 +10,19 @@ type CreatomateWebhookPayload = {
     error?: string;
 };
 
-function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
-    const secret = process.env.CREATOMATE_WEBHOOK_SECRET;
-    if (!secret) {
-        // If no secret is configured, allow webhook in development.
-        return true;
-    }
-    if (!signature) {
-        return false;
-    }
-
-    const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
-}
-
 export async function POST(request: Request): Promise<Response> {
     try {
         const rawBody = await request.text();
         const signature = request.headers.get("x-creatomate-signature");
 
-        if (!verifyWebhookSignature(rawBody, signature)) {
+        const secret = await getConfigValue("CREATOMATE_WEBHOOK_SECRET");
+        if (secret && signature) {
+            const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+            const isValid = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+            if (!isValid) {
+                return Response.json({ message: "Assinatura do webhook inválida." }, { status: 401 });
+            }
+        } else if (secret && !signature) {
             return Response.json({ message: "Assinatura do webhook inválida." }, { status: 401 });
         }
 
@@ -45,8 +39,10 @@ export async function POST(request: Request): Promise<Response> {
         });
 
         return Response.json({ message: "Webhook processado com sucesso." }, { status: 200 });
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Erro no webhook de renderização.";
-        return Response.json({ message }, { status: 500 });
+    } catch {
+        return Response.json(
+            { message: "Ops! Verifique sua conexão ou configuração de API." },
+            { status: 500 },
+        );
     }
 }

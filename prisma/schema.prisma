@@ -30,3 +30,16 @@ model Product {
   videoStatus VideoStatus @default(PENDING)
   createdAt   DateTime    @default(now())
 }
+
+model AppConfig {
+  id                     String   @id @default(cuid())
+  openaiApiKey           String?
+  creatomateApiKey       String?
+  creatomateWebhookSecret String?
+  elevenLabsVoiceId      String?
+  elevenLabsModelId      String?
+  renderWebhookUrl       String?
+  creditsAvailable       Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}

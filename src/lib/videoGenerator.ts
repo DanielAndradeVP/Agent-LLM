@@ -1,5 +1,6 @@
 import axios from "axios";
 import { prisma } from "./prisma";
+import { decrementCredits, getEffectiveConfig } from "./runtimeConfig";
 
 type CreatomateRenderResponse = {
     id: string;
@@ -19,13 +20,14 @@ const DEFAULT_MUSIC_URL =
 function buildWebhookUrl(input: {
     requestOrigin?: string;
     webhookOverride?: string;
+    globalWebhookUrl?: string;
 }): string | undefined {
     if (input.webhookOverride) {
         return input.webhookOverride;
     }
 
-    if (process.env.RENDER_WEBHOOK_URL) {
-        return process.env.RENDER_WEBHOOK_URL;
+    if (input.globalWebhookUrl) {
+        return input.globalWebhookUrl;
     }
 
     if (!input.requestOrigin) {
@@ -57,6 +59,8 @@ function splitScriptIntoCaptions(script: string): string[] {
 function buildTemplateModifications(input: {
     productImageUrl: string;
     script: string;
+    elevenLabsVoiceId?: string;
+    elevenLabsModelId?: string;
 }): Record<string, unknown> {
     const captions = splitScriptIntoCaptions(input.script);
 
@@ -96,8 +100,8 @@ function buildTemplateModifications(input: {
                     duration: 20,
                     text: input.script,
                     provider: "elevenlabs",
-                    voice: process.env.ELEVENLABS_VOICE_ID ?? "Rachel",
-                    model: process.env.ELEVENLABS_MODEL_ID ?? "eleven_multilingual_v2",
+                    voice: input.elevenLabsVoiceId ?? "Rachel",
+                    model: input.elevenLabsModelId ?? "eleven_multilingual_v2",
                 },
                 ...captions.map((line, index) => ({
                     type: "text",
@@ -137,9 +141,13 @@ export async function generateFinalVideo(
     videoUrl: string | null;
     webhookUrl: string | null;
 }> {
-    const apiKey = process.env.CREATOMATE_API_KEY;
+    const config = await getEffectiveConfig();
+    const apiKey = config.creatomateApiKey;
     if (!apiKey) {
         throw new Error("CREATOMATE_API_KEY não configurada.");
+    }
+    if (config.creditsAvailable <= 0) {
+        throw new Error("Sem créditos disponíveis para renderizar novos vídeos.");
     }
 
     const product = await prisma.product.findUnique({
@@ -162,10 +170,13 @@ export async function generateFinalVideo(
     const webhookUrl = buildWebhookUrl({
         requestOrigin: options?.requestOrigin,
         webhookOverride: options?.webhookUrl,
+        globalWebhookUrl: config.renderWebhookUrl ?? undefined,
     });
     const modifications = buildTemplateModifications({
         productImageUrl: product.imageUrl,
         script: product.aiScript,
+        elevenLabsVoiceId: config.elevenlabsVoiceId ?? undefined,
+        elevenLabsModelId: config.elevenlabsModelId ?? undefined,
     });
 
     await prisma.product.update({
@@ -211,6 +222,7 @@ export async function generateFinalVideo(
             webhookUrl: webhookUrl ?? null,
         },
     });
+    await decrementCredits(1);
 
     return {
         renderId: data.id,
@@ -224,7 +236,7 @@ export async function generateFinalVideo(
 export async function syncRenderStatusByJobId(
     renderJobId: string,
 ): Promise<RenderProgress> {
-    const apiKey = process.env.CREATOMATE_API_KEY;
+    const apiKey = (await getEffectiveConfig()).creatomateApiKey;
     if (!apiKey) {
         throw new Error("CREATOMATE_API_KEY não configurada.");
     }
@@ -314,4 +326,13 @@ export async function completeRenderFromWebhook(input: {
             videoProgress: 80,
         },
     });
+}
+
+export async function ensureVideoConfigAvailable(): Promise<{
+    hasCreatomate: boolean;
+}> {
+    const config = await getEffectiveConfig();
+    return {
+        hasCreatomate: Boolean(config.creatomateApiKey),
+    };
 }

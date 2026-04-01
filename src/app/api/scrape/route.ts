@@ -24,8 +24,10 @@ export async function POST(request: Request): Promise<Response> {
             },
             { status: 200 },
         );
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Erro inesperado no scraper.";
-        return Response.json({ message }, { status: 500 });
+    } catch {
+        return Response.json(
+            { message: "Ops! Verifique sua conexão ou configuração de API." },
+            { status: 500 },
+        );
     }
 }

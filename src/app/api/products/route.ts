@@ -8,6 +8,9 @@ type ProductScriptUpdatePayload = {
 export async function GET(): Promise<Response> {
     try {
         const products = await prisma.product.findMany({
+            where: {
+                NOT: [{ productUrl: "__runtime_config__" }],
+            },
             orderBy: {
                 salesCount: "desc",
             },

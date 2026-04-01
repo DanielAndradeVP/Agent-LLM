@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { getConfigValue } from "./runtimeConfig";
 
 export type ProductScriptInput = {
     title: string;
@@ -7,9 +8,9 @@ export type ProductScriptInput = {
 };
 
 export async function generateSalesScript(productData: ProductScriptInput): Promise<string> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = await getConfigValue("OPENAI_API_KEY");
     if (!apiKey) {
-        throw new Error("OPENAI_API_KEY não configurada no ambiente.");
+        throw new Error("OPENAI_API_KEY não configurada.");
     }
     const openai = new OpenAI({ apiKey });
 
