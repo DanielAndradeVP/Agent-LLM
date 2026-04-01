@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 enum VideoStatus {
@@ -21,7 +20,7 @@ model Product {
   salesCount  Int
   productUrl  String      @unique
   imageUrl    String
-  description String
+  description String      @db.Text
   videoStatus VideoStatus @default(PENDING)
   createdAt   DateTime    @default(now())
 }
