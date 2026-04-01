@@ -20,7 +20,8 @@ model Product {
   salesCount  Int
   productUrl  String      @unique
   imageUrl    String
-  description String      @db.Text
+  description String
+  aiScript    String?
   videoStatus VideoStatus @default(PENDING)
   createdAt   DateTime    @default(now())
 }

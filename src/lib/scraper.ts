@@ -202,6 +202,7 @@ export async function mineTikTokShopProducts(input?: {
                 salesCount: product.salesCount,
                 productUrl: product.productUrl,
                 description: product.description,
+                aiScript: "",
                 videoStatus: "PENDING",
             },
             update: {
