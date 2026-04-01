@@ -25,6 +25,10 @@
           <img :src="product.imageUrl" :alt="product.title" class="product-image" />
           <h3 class="product-title">{{ product.title }}</h3>
           <p class="product-meta">{{ product.price }} • {{ formatSales(product.salesCount) }} vendas</p>
+          <p class="status-line">
+            Status do vídeo:
+            <strong>{{ product.videoStatus }}</strong>
+          </p>
 
           <Button
             type="call"
@@ -50,6 +54,53 @@
           >
             {{ isSavingScript[product.id] ? 'Salvando...' : 'Salvar Roteiro' }}
           </Button>
+
+          <label class="script-label" :for="`webhook-${product.id}`">Webhook de conclusão (opcional)</label>
+          <input
+            :id="`webhook-${product.id}`"
+            v-model="editableWebhookUrls[product.id]"
+            class="webhook-input"
+            type="url"
+            placeholder="https://seu-dominio.com/api/render-video/webhook"
+          />
+
+          <Button
+            type="primary"
+            :disabled="
+              isRenderingVideo[product.id] ||
+              !editableScripts[product.id] ||
+              editableScripts[product.id].trim().length === 0
+            "
+            @click="handleRenderVideo(product.id)"
+          >
+            {{ isRenderingVideo[product.id] ? 'Renderizando vídeo...' : 'Gerar Vídeo' }}
+          </Button>
+
+          <div class="progress-wrapper">
+            <div class="progress-track">
+              <div class="progress-fill" :style="{ width: `${Math.max(0, Math.min(100, product.videoProgress || 0))}%` }" />
+            </div>
+            <p class="progress-text">{{ product.videoProgress || 0 }}%</p>
+          </div>
+
+          <a
+            v-if="product.videoUrl"
+            class="download-link"
+            :href="product.videoUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Download Vídeo
+          </a>
+
+          <video
+            v-if="product.videoUrl"
+            class="video-preview"
+            controls
+            preload="metadata"
+            :src="product.videoUrl"
+          />
+          <p v-if="product.videoError" class="error-text">{{ product.videoError }}</p>
         </article>
       </div>
     </section>
@@ -62,7 +113,7 @@
 
 <script setup lang="ts">
 import axios from 'axios';
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import Header from '@/Components/Header.vue';
 import HeroBanner from '@/Components/HeroBanner.vue';
 import ServiceList from '@/Components/ServiceList.vue';
@@ -79,6 +130,11 @@ type ProductItem = {
   imageUrl: string;
   description: string;
   aiScript: string | null;
+  videoStatus: 'PENDING' | 'GENERATING' | 'COMPLETED' | 'FAILED';
+  videoUrl: string | null;
+  videoProgress: number;
+  videoError: string | null;
+  webhookUrl: string | null;
 };
 
 type ProductsResponse = {
@@ -99,24 +155,38 @@ type GenerateScriptResponse = {
   aiScript: string;
 };
 
+type RenderVideoResponse = {
+  message: string;
+  productId: string;
+  status: 'GENERATING' | 'COMPLETED' | 'FAILED';
+  progress: number;
+  videoUrl: string | null;
+};
+
 const isScraping = ref(false);
 const isLoadingProducts = ref(false);
 const toastMessage = ref('');
 const products = ref<ProductItem[]>([]);
 const editableScripts = ref<Record<string, string>>({});
+const editableWebhookUrls = ref<Record<string, string>>({});
 const isGeneratingScript = ref<Record<string, boolean>>({});
 const isSavingScript = ref<Record<string, boolean>>({});
+const isRenderingVideo = ref<Record<string, boolean>>({});
+const pollingIntervals = ref<Record<string, number>>({});
 
 function formatSales(salesCount: number): string {
   return new Intl.NumberFormat('pt-BR').format(salesCount);
 }
 
 function syncEditableScripts(items: ProductItem[]): void {
-  const next: Record<string, string> = {};
+  const nextScripts: Record<string, string> = {};
+  const nextWebhooks: Record<string, string> = {};
   for (const item of items) {
-    next[item.id] = item.aiScript ?? '';
+    nextScripts[item.id] = item.aiScript ?? '';
+    nextWebhooks[item.id] = item.webhookUrl ?? '';
   }
-  editableScripts.value = next;
+  editableScripts.value = nextScripts;
+  editableWebhookUrls.value = nextWebhooks;
 }
 
 async function loadProducts(): Promise<void> {
@@ -125,6 +195,13 @@ async function loadProducts(): Promise<void> {
     const { data } = await axios.get<ProductsResponse>('/api/products');
     products.value = data.products;
     syncEditableScripts(data.products);
+    for (const product of data.products) {
+      if (product.videoStatus === 'GENERATING') {
+        startVideoPolling(product.id);
+      } else {
+        stopVideoPolling(product.id);
+      }
+    }
   } catch (error) {
     console.error('Erro ao carregar produtos:', error);
     toastMessage.value = 'Não foi possível carregar os produtos.';
@@ -203,8 +280,93 @@ async function handleSaveScript(productId: string): Promise<void> {
   }
 }
 
+function stopVideoPolling(productId: string): void {
+  const intervalId = pollingIntervals.value[productId];
+  if (intervalId) {
+    window.clearInterval(intervalId);
+    const next = { ...pollingIntervals.value };
+    delete next[productId];
+    pollingIntervals.value = next;
+  }
+}
+
+function startVideoPolling(productId: string): void {
+  stopVideoPolling(productId);
+
+  const intervalId = window.setInterval(async () => {
+    try {
+      const { data } = await axios.get<ProductsResponse>('/api/products');
+      products.value = data.products;
+      syncEditableScripts(data.products);
+
+      const current = data.products.find((item) => item.id === productId);
+      if (!current) {
+        stopVideoPolling(productId);
+        isRenderingVideo.value = { ...isRenderingVideo.value, [productId]: false };
+        return;
+      }
+
+      if (current.videoStatus === 'COMPLETED' || current.videoStatus === 'FAILED') {
+        stopVideoPolling(productId);
+        isRenderingVideo.value = { ...isRenderingVideo.value, [productId]: false };
+        toastMessage.value =
+          current.videoStatus === 'COMPLETED'
+            ? 'Vídeo final renderizado com sucesso.'
+            : current.videoError ?? 'A renderização do vídeo falhou.';
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar progresso do vídeo:', error);
+    }
+  }, 4000);
+
+  pollingIntervals.value = { ...pollingIntervals.value, [productId]: intervalId };
+}
+
+async function handleRenderVideo(productId: string): Promise<void> {
+  if (isRenderingVideo.value[productId]) {
+    return;
+  }
+
+  isRenderingVideo.value = { ...isRenderingVideo.value, [productId]: true };
+  toastMessage.value = 'Iniciando renderização do vídeo...';
+
+  try {
+    const webhookUrl = editableWebhookUrls.value[productId]?.trim() || undefined;
+    const { data } = await axios.post<RenderVideoResponse>('/api/render-video', { productId, webhookUrl });
+    const product = products.value.find((item) => item.id === productId);
+    if (product) {
+      product.videoStatus = data.status;
+      product.videoProgress = data.progress;
+      product.videoUrl = data.videoUrl;
+      if (webhookUrl) {
+        product.webhookUrl = webhookUrl;
+      }
+    }
+    toastMessage.value = data.message;
+
+    if (data.status === 'GENERATING') {
+      startVideoPolling(productId);
+    } else if (data.status === 'COMPLETED') {
+      isRenderingVideo.value = { ...isRenderingVideo.value, [productId]: false };
+    } else {
+      isRenderingVideo.value = { ...isRenderingVideo.value, [productId]: false };
+      toastMessage.value = 'Falha ao renderizar vídeo.';
+    }
+  } catch (error) {
+    isRenderingVideo.value = { ...isRenderingVideo.value, [productId]: false };
+    toastMessage.value = 'Falha ao iniciar renderização do vídeo.';
+    console.error('Erro ao renderizar vídeo:', error);
+  }
+}
+
 onMounted(async () => {
   await loadProducts();
+});
+
+onBeforeUnmount(() => {
+  for (const key of Object.keys(pollingIntervals.value)) {
+    stopVideoPolling(key);
+  }
 });
 </script>
 
@@ -285,6 +447,12 @@ onMounted(async () => {
   font-size: 0.9rem;
 }
 
+.status-line {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
 .script-label {
   font-size: 0.85rem;
   color: #374151;
@@ -299,5 +467,58 @@ onMounted(async () => {
   padding: 0.65rem;
   font-size: 0.9rem;
   font-family: inherit;
+}
+
+.webhook-input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.6rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+.progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e67e22, #f0a742);
+  transition: width 0.25s ease;
+}
+
+.progress-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.download-link {
+  display: inline-block;
+  font-weight: 600;
+  color: #152a48;
+  text-decoration: underline;
+}
+
+.video-preview {
+  width: 100%;
+  border-radius: 8px;
+  background: #000;
+}
+
+.error-text {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
 }
 </style>

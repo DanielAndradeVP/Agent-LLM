@@ -22,6 +22,11 @@ model Product {
   imageUrl    String
   description String
   aiScript    String?
+  videoUrl    String?
+  renderJobId String?
+  videoProgress Int       @default(0)
+  videoError   String?
+  webhookUrl  String?
   videoStatus VideoStatus @default(PENDING)
   createdAt   DateTime    @default(now())
 }
