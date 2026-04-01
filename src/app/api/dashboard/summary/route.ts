@@ -1,13 +1,12 @@
-import { prisma } from "../../../lib/prisma";
-import { readRuntimeConfig } from "../../../lib/runtimeConfig";
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { readRuntimeConfig } from "@/lib/runtimeConfig";
 
-export async function GET(): Promise<Response> {
+export async function GET(): Promise<NextResponse> {
     try {
         const [totalProducts, readyVideos, config] = await Promise.all([
             prisma.product.count({
-                where: {
-                    NOT: [{ productUrl: "__runtime_config__" }],
-                },
+                where: { NOT: [{ productUrl: "__runtime_config__" }] },
             }),
             prisma.product.count({
                 where: {
@@ -18,7 +17,7 @@ export async function GET(): Promise<Response> {
             readRuntimeConfig(),
         ]);
 
-        return Response.json(
+        return NextResponse.json(
             {
                 totalProducts,
                 readyVideos,
@@ -27,7 +26,7 @@ export async function GET(): Promise<Response> {
             { status: 200 },
         );
     } catch {
-        return Response.json(
+        return NextResponse.json(
             { message: "Ops! Verifique sua conexão ou configuração de API." },
             { status: 500 },
         );
