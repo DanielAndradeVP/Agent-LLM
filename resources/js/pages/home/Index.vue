@@ -60,6 +60,7 @@ const settingsModalOpen = ref(false);
 const settingsLoading = ref(false);
 const settingsError = ref('');
 const settingsMessage = ref('');
+const settingsSuccess = ref(false);
 const apiSettingsState = ref<ApiSettingsState>({
     openaiConfigured: false,
     didConfigured: false,
@@ -195,6 +196,7 @@ const saveApiSettings = async () => {
     settingsLoading.value = true;
     settingsError.value = '';
     settingsMessage.value = '';
+    settingsSuccess.value = false;
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -224,7 +226,8 @@ const saveApiSettings = async () => {
             didConfigured: Boolean(payload?.data?.didConfigured),
             tiktokConfigured: Boolean(payload?.data?.tiktokConfigured),
         };
-        settingsMessage.value = payload?.message ?? 'API keys saved securely.';
+        settingsMessage.value = payload?.message ?? 'Sucesso!';
+        settingsSuccess.value = true;
         openaiApiKeyInput.value = '';
         didApiKeyInput.value = '';
         tiktokAppKeyInput.value = '';
@@ -583,7 +586,7 @@ onBeforeUnmount(() => {
             </div>
 
             <p class="mb-4 text-sm text-zinc-400">
-                As chaves sao salvas com criptografia no backend. Deixe em branco para manter valor atual.
+                As chaves sao salvas no .env e no banco (criptografado). Deixe em branco para manter valor atual.
             </p>
 
             <div class="space-y-3">
@@ -654,7 +657,7 @@ onBeforeUnmount(() => {
             </div>
 
             <p v-if="settingsError" class="mt-3 text-sm text-red-400">{{ settingsError }}</p>
-            <p v-if="settingsMessage" class="mt-3 text-sm text-[#39ff14]">{{ settingsMessage }}</p>
+            <p v-if="settingsMessage" class="mt-3 text-sm" :class="settingsSuccess ? 'text-[#39ff14]' : 'text-zinc-300'">{{ settingsMessage }}</p>
 
             <div class="mt-5 flex justify-end gap-2">
                 <button
