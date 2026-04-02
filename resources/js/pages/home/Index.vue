@@ -168,7 +168,7 @@ const loadProducts = async (page = 1) => {
     productsError.value = '';
 
     try {
-        const response = await fetch(`/tiktok-shop/mined-ads?page=${page}&per_page=20`, {
+        const response = await fetch(`/miner/tiktok-shop?page=${page}&per_page=20`, {
             headers: {
                 Accept: 'application/json',
             },
@@ -242,11 +242,35 @@ const saveApiSettings = async () => {
 
 const copyImages = async (product: TikTokProductCard) => {
     try {
-        await navigator.clipboard.writeText(product.images.join('\n'));
-        uiMessage.value = `Image links copied for ${product.name}.`;
+        if (product.images.length === 0) {
+            uiMessage.value = 'No product images available to download.';
+            clearToast();
+            return;
+        }
+
+        await Promise.all(
+            product.images.map(async (url, index) => {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Image download failed');
+                }
+
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = objectUrl;
+                anchor.download = `${product.product_id || product.id}-${index + 1}.jpg`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                URL.revokeObjectURL(objectUrl);
+            })
+        );
+
+        uiMessage.value = `Images downloaded for ${product.name}.`;
         clearToast();
     } catch {
-        uiMessage.value = 'Failed to copy images.';
+        uiMessage.value = 'Failed to download product images.';
         clearToast();
     }
 };

@@ -35,32 +35,7 @@ class TikTokShopMinerController extends Controller
         ]);
 
         return response()->json([
-            'data' => [
-                'products' => array_map(function (array $item): array {
-                    return [
-                        'id' => $item['id'],
-                        'product_id' => $item['product_id'],
-                        'name' => $item['name'],
-                        'category' => $item['category'],
-                        'description' => $item['description'],
-                        'image' => $item['image'],
-                        'images' => $item['images'],
-                        'original_post' => $item['original_post_url'],
-                        'seller_link' => $item['seller_link'],
-                        'metrics' => [
-                            'views' => $item['views'],
-                            'sales' => $item['sales'],
-                            'likes' => $item['likes'],
-                        ],
-                    ];
-                }, $result['items']),
-                'pagination' => [
-                    'current_page' => $result['meta']['page'],
-                    'per_page' => $result['meta']['per_page'],
-                    'total' => $result['meta']['total'],
-                    'last_page' => $result['meta']['total_pages'],
-                ],
-            ],
+            'data' => $result,
         ]);
     }
 }

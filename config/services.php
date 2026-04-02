@@ -54,4 +54,10 @@ return [
         'access_token' => env('TIKTOK_ACCESS_TOKEN'),
     ],
 
+    'rapidapi' => [
+        'key' => env('RAPIDAPI_KEY'),
+        'host' => env('RAPIDAPI_HOST', 'tiktok-scraper7.p.rapidapi.com'),
+        'base_url' => env('RAPIDAPI_BASE_URL', 'https://tiktok-scraper7.p.rapidapi.com'),
+    ],
+
 ];

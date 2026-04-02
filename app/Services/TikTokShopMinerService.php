@@ -3,7 +3,8 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 
 class TikTokShopMinerService
@@ -19,20 +20,22 @@ class TikTokShopMinerService
         $page = max((int) ($options['page'] ?? 1), 1);
         $perPage = max((int) ($options['per_page'] ?? 20), 1);
         $offset = ($page - 1) * $perPage;
+        $rapidApiKey = (string) config('services.rapidapi.key');
 
-        $dataset = $this->getDataset();
-
-        // Security/assertiveness rule: only keep records with TikTok Shop URLs and product IDs.
-        $shopItems = array_values(array_filter($dataset, function (array $item): bool {
-            $originalPost = (string) ($item['original_post'] ?? '');
-            $isShop = (bool) preg_match('/^https:\/\/www\.tiktok\.com\/@[^\/]+\/video\/\d+$/', $originalPost);
-            $hasProductId = ! empty($item['product_id']);
-
-            return $isShop && $hasProductId;
-        }));
-
-        $total = count($shopItems);
-        $items = array_slice($shopItems, $offset, $perPage);
+        if ($rapidApiKey !== '') {
+            try {
+                $rapidItems = $this->getRapidApiDataset($page, $perPage);
+                $total = count($rapidItems);
+                $items = $rapidItems;
+            } catch (Throwable $exception) {
+                Log::warning('RapidAPI TikTok unavailable. Falling back to local dataset.', [
+                    'message' => $exception->getMessage(),
+                ]);
+                [$items, $total] = $this->getFallbackPage($offset, $perPage);
+            }
+        } else {
+            [$items, $total] = $this->getFallbackPage($offset, $perPage);
+        }
 
         return [
             'items' => array_values($items),
@@ -46,31 +49,63 @@ class TikTokShopMinerService
     }
 
     /**
+     * @return array{0: array<int, array<string, mixed>>, 1: int}
+     */
+    private function getFallbackPage(int $offset, int $perPage): array
+    {
+        $dataset = $this->fallbackDataset();
+        $shopItems = array_values(array_filter($dataset, function (array $item): bool {
+            $originalPost = (string) ($item['original_post_url'] ?? '');
+            $isShop = (bool) preg_match('/^https:\/\/www\.tiktok\.com\/@[^\/]+\/video\/\d+$/', $originalPost);
+            $hasProductId = ! empty($item['product_id']);
+
+            return $isShop && $hasProductId;
+        }));
+
+        return [array_slice($shopItems, $offset, $perPage), count($shopItems)];
+    }
+@@
+    
+
+    /**
      * @return array<int, array<string, mixed>>
      */
-    private function getDataset(): array
+    private function getRapidApiDataset(int $page, int $perPage): array
     {
-        // If an external feed is configured, try it first; fall back to curated resilient dataset.
-        $feedUrl = config('services.tiktok_shop.feed_url');
-        if (blank($feedUrl)) {
-            return $this->fallbackDataset();
-        }
+        $baseUrl = rtrim((string) config('services.rapidapi.tiktok_base_url', 'https://tiktok-scraper7.p.rapidapi.com'), '/');
+        $endpoint = '/'.ltrim((string) config('services.rapidapi.tiktok_feed_endpoint', '/feed/list'), '/');
+        $host = (string) config('services.rapidapi.tiktok_host', 'tiktok-scraper7.p.rapidapi.com');
+        $key = (string) config('services.rapidapi.key');
+        $cursor = max(($page - 1) * $perPage, 0);
 
         try {
-            $response = Http::timeout(12)->acceptJson()->get($feedUrl);
-            if ($response->ok() && is_array($response->json())) {
-                /** @var mixed $decoded */
-                $decoded = $response->json();
-                $normalized = $this->normalizeFeed($decoded);
-                if ($normalized !== []) {
-                    return $normalized;
-                }
-            }
-        } catch (Throwable) {
-            // Silent fallback keeps UI available if provider blocks request.
-        }
+            $response = Http::timeout(20)
+                ->acceptJson()
+                ->withHeaders([
+                    'x-rapidapi-key' => $key,
+                    'x-rapidapi-host' => $host,
+                ])
+                ->get($baseUrl.$endpoint, [
+                    'region' => 'US',
+                    'count' => $perPage,
+                    'cursor' => $cursor,
+                ]);
 
-        return $this->fallbackDataset();
+            if ($response->failed()) {
+                throw new RuntimeException('RapidAPI request failed: '.$response->status().' '.$response->body());
+            }
+
+            /** @var mixed $decoded */
+            $decoded = $response->json();
+            $normalized = $this->normalizeFeed($decoded);
+            if ($normalized === []) {
+                throw new RuntimeException('RapidAPI returned an empty or unsupported payload.');
+            }
+
+            return $normalized;
+        } catch (Throwable $exception) {
+            throw new RuntimeException('Falha ao consultar RapidAPI TikTok: '.$exception->getMessage(), 0, $exception);
+        }
     }
 
     /**
@@ -83,7 +118,12 @@ class TikTokShopMinerService
             return [];
         }
 
-        $rawItems = $decoded['items'] ?? $decoded;
+        $rawItems = $decoded['data']['items']
+            ?? $decoded['data']['aweme_list']
+            ?? $decoded['aweme_list']
+            ?? $decoded['items']
+            ?? [];
+
         if (! is_array($rawItems)) {
             return [];
         }
@@ -94,33 +134,60 @@ class TikTokShopMinerService
                 continue;
             }
 
-            $productId = (string) ($item['product_id'] ?? '');
-            $sellerHandle = (string) ($item['seller_handle'] ?? 'tiktokshop');
-            $sellerLink = (string) ($item['seller_link'] ?? ('https://www.tiktok.com/@'.$sellerHandle));
-            $postUrl = (string) ($item['original_post'] ?? $item['original_post_url'] ?? '');
-            $image = (string) ($item['image'] ?? '');
-            $images = is_array($item['images'] ?? null) ? array_values($item['images']) : [$image];
+            $title = (string) ($item['title'] ?? $item['desc'] ?? $item['name'] ?? 'TikTok Product');
+            $awemeId = (string) ($item['aweme_id'] ?? $item['id'] ?? '');
+            $authorHandle = (string) ($item['author']['unique_id'] ?? $item['author']['nickname'] ?? 'tiktok');
+            $postUrl = (string) ($item['share_url'] ?? '');
+            if ($postUrl === '' && $awemeId !== '') {
+                $postUrl = 'https://www.tiktok.com/@'.$authorHandle.'/video/'.$awemeId;
+            }
 
-            if ($productId === '' || $postUrl === '' || $image === '') {
+            $coverImage = (string) (
+                $item['cover']['url_list'][0]
+                    ?? $item['video']['cover']['url_list'][0]
+                    ?? $item['music_info']['cover_thumb']['url_list'][0]
+                    ?? ''
+            );
+
+            $images = $this->extractImages($item);
+            if ($images === [] && $coverImage !== '') {
+                $images = [$coverImage];
+            }
+
+            $productId = (string) ($item['commerce_info']['product_id'] ?? $item['product_id'] ?? $awemeId);
+            $price = (float) (
+                $item['commerce_info']['price']
+                    ?? $item['product_info']['price']
+                    ?? $item['price']
+                    ?? 0
+            );
+            $sales = (int) (
+                $item['commerce_info']['sales']
+                    ?? $item['product_info']['sales']
+                    ?? $item['statistics']['collect_count']
+                    ?? 0
+            );
+
+            if ($postUrl === '' || $coverImage === '') {
                 continue;
             }
 
             $normalized[] = [
-                'id' => (string) ($item['id'] ?? ('shop-'.$productId)),
+                'id' => (string) ($item['id'] ?? ('shop-'.$awemeId)),
                 'product_id' => $productId,
-                'name' => (string) ($item['name'] ?? 'TikTok Shop Product'),
+                'name' => $title,
                 'category' => (string) ($item['category'] ?? 'General'),
-                'description' => (string) ($item['description'] ?? ''),
-                'image' => $image,
+                'description' => (string) ($item['desc'] ?? ''),
+                'image' => $coverImage,
                 'images' => $images,
-                'original_post' => $postUrl,
-                'seller_handle' => $sellerHandle,
-                'seller_link' => $sellerLink,
-                'price' => (float) ($item['price'] ?? 0),
+                'original_post_url' => $postUrl,
+                'seller_handle' => $authorHandle,
+                'seller_link' => 'https://www.tiktok.com/@'.$authorHandle,
+                'price' => $price,
                 'metrics' => [
-                    'sales' => (int) ($item['sales'] ?? 0),
-                    'views' => (int) ($item['views'] ?? 0),
-                    'likes' => (int) ($item['likes'] ?? 0),
+                    'sales' => $sales,
+                    'views' => (int) ($item['statistics']['play_count'] ?? $item['views'] ?? 0),
+                    'likes' => (int) ($item['statistics']['digg_count'] ?? $item['likes'] ?? 0),
                 ],
             ];
         }
@@ -217,7 +284,7 @@ class TikTokShopMinerService
                     $imageBase.'?auto=format&fit=crop&w=1000&q=80',
                     $imageBase.'?auto=format&fit=crop&w=1200&q=80',
                 ],
-                'original_post' => 'https://www.tiktok.com/@'.$sellerHandle.'/video/'.$idBase,
+                'original_post_url' => 'https://www.tiktok.com/@'.$sellerHandle.'/video/'.$idBase,
                 'seller_handle' => $sellerHandle,
                 'seller_link' => 'https://www.tiktok.com/@'.$sellerHandle,
                 'price' => round(14.9 + ($index * 1.35), 2),
@@ -251,5 +318,47 @@ class TikTokShopMinerService
                 'last_page' => (int) $result['meta']['total_pages'],
             ],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array<int, string>
+     */
+    private function extractImages(array $item): array
+    {
+        $sources = [
+            $item['image_post_info']['images'] ?? null,
+            $item['images'] ?? null,
+            $item['image_list'] ?? null,
+        ];
+
+        $images = [];
+        foreach ($sources as $source) {
+            if (! is_array($source)) {
+                continue;
+            }
+
+            foreach ($source as $img) {
+                if (is_string($img)) {
+                    $images[] = $img;
+                    continue;
+                }
+
+                if (! is_array($img)) {
+                    continue;
+                }
+
+                $url = $img['display_image']['url_list'][0]
+                    ?? $img['url_list'][0]
+                    ?? $img['url']
+                    ?? null;
+
+                if (is_string($url) && $url !== '') {
+                    $images[] = $url;
+                }
+            }
+        }
+
+        return array_values(array_unique($images));
     }
 }
