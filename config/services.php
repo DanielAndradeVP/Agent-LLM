@@ -44,4 +44,8 @@ return [
         'api_key' => env('CREATOMATE_API_KEY'),
     ],
 
+    'd_id' => [
+        'api_key' => env('DID_API_KEY'),
+    ],
+
 ];

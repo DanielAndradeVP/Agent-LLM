@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ApiSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -15,12 +17,13 @@ class PromptGeneratorController extends Controller
             $validated = $request->validate([
                 'product' => ['required', 'array'],
                 'product.name' => ['required', 'string'],
+                'product.productId' => ['nullable', 'string'],
+                'product.sellerLink' => ['nullable', 'string'],
                 'product.category' => ['required', 'string'],
                 'product.description' => ['required', 'string'],
                 'product.metrics' => ['required', 'array'],
-                'product.metrics.views' => ['required', 'numeric'],
                 'product.metrics.sales' => ['required', 'numeric'],
-                'product.metrics.likes' => ['required', 'numeric'],
+                'product.originalPost' => ['required', 'string'],
                 'model' => ['required', 'array'],
                 'model.name' => ['required', 'string'],
                 'model.description' => ['required', 'string'],
@@ -38,13 +41,13 @@ class PromptGeneratorController extends Controller
             ], 422);
         }
 
-        $apiKey = config('services.openai.api_key');
+        $apiKey = ApiSetting::forServiceKey('openai_api_key') ?? config('services.openai.api_key');
         $model = config('services.openai.model', 'gpt-4.1-mini');
 
         if (blank($apiKey)) {
             return response()->json([
-                'message' => 'OpenAI API key is not configured. Set OPENAI_API_KEY in .env.',
-            ], 500);
+                'message' => 'Configuracao Necessaria: OpenAI API key ausente.',
+            ], 422);
         }
 
         $systemPrompt = <<<'PROMPT'
@@ -61,13 +64,14 @@ Output rules:
 PROMPT;
 
         $userPrompt = sprintf(
-            "Product Data:\n- Name: %s\n- Category: %s\n- Description: %s\n- Metrics: Views %s, Sales %s, Likes %s\n\nModel Data:\n- Name: %s\n- Description: %s\n\nCreative Controls:\n- Voice Gender: %s\n- Voice Tone: %s\n- Movement/Pose: %s\n- Format: %s\n- Scenario: %s\n\nGenerate a single final prompt in English.",
+            "Product Data:\n- Name: %s\n- Product ID: %s\n- Seller Link: %s\n- Category: %s\n- Description: %s\n- Sales: %s\n- Original Viral Post: %s\n\nModel Data:\n- Name: %s\n- Description: %s\n\nCreative Controls:\n- Voice Gender: %s\n- Voice Tone: %s\n- Movement/Pose: %s\n- Format: %s\n- Scenario: %s\n\nGenerate a single final prompt in English.",
             $validated['product']['name'],
+            $validated['product']['productId'] ?? 'N/A',
+            $validated['product']['sellerLink'] ?? 'N/A',
             $validated['product']['category'],
             $validated['product']['description'],
-            number_format((float) $validated['product']['metrics']['views'], 0, '.', ','),
             number_format((float) $validated['product']['metrics']['sales'], 0, '.', ','),
-            number_format((float) $validated['product']['metrics']['likes'], 0, '.', ','),
+            $validated['product']['originalPost'],
             $validated['model']['name'],
             $validated['model']['description'],
             $validated['settings']['voiceGender'],
@@ -91,6 +95,11 @@ PROMPT;
                 ]);
 
             if ($response->failed()) {
+                Log::warning('OpenAI request failed for prompt generation.', [
+                    'status' => $response->status(),
+                    'body' => $response->json(),
+                ]);
+
                 return response()->json([
                     'message' => 'OpenAI request failed.',
                     'error' => $response->json(),
