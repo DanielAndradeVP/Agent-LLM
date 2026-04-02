@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -41,16 +42,6 @@ type SummaryResponse = {
   creditsAvailable: number;
 };
 
-type SettingsResponse = {
-  openaiApiKey: string;
-  creatomateApiKey: string;
-  creatomateWebhookSecret: string;
-  elevenlabsVoiceId: string;
-  elevenlabsModelId: string;
-  renderWebhookUrl: string;
-  creditsAvailable: number;
-};
-
 type ConfigCheckResponse = {
   hasOpenAI: boolean;
   hasCreatomate: boolean;
@@ -64,7 +55,6 @@ type Toast = {
 };
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "settings">("dashboard");
   const [summary, setSummary] = useState<SummaryResponse>({
     totalProducts: 0,
     readyVideos: 0,
@@ -76,20 +66,10 @@ export default function Home() {
     hasCreatomate: false,
     hasWebhookSecret: false,
   });
-  const [settings, setSettings] = useState<SettingsResponse>({
-    openaiApiKey: "",
-    creatomateApiKey: "",
-    creatomateWebhookSecret: "",
-    elevenlabsVoiceId: "",
-    elevenlabsModelId: "eleven_multilingual_v2",
-    renderWebhookUrl: "",
-    creditsAvailable: 0,
-  });
   const [editableScripts, setEditableScripts] = useState<Record<string, string>>({});
   const [editableWebhookUrls, setEditableWebhookUrls] = useState<Record<string, string>>({});
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isGeneratingScript, setIsGeneratingScript] = useState<Record<string, boolean>>({});
   const [isSavingScript, setIsSavingScript] = useState<Record<string, boolean>>({});
   const [isRenderingVideo, setIsRenderingVideo] = useState<Record<string, boolean>>({});
@@ -118,13 +98,6 @@ export default function Home() {
     const data = await response.json();
     if (!response.ok) throw new Error(data?.message ?? "Erro ao validar configurações");
     setConfigCheck(data);
-  }, []);
-
-  const loadSettings = useCallback(async () => {
-    const response = await fetch("/api/settings");
-    const data = await response.json();
-    if (!response.ok) throw new Error(data?.message ?? "Erro ao carregar configurações");
-    setSettings(data);
   }, []);
 
   const loadProducts = useCallback(async () => {
@@ -156,8 +129,8 @@ export default function Home() {
   }, [loadSummary, loadConfigCheck, loadProducts]);
 
   useEffect(() => {
-    void Promise.all([refreshAll(), loadSettings()]);
-  }, [refreshAll, loadSettings]);
+    void refreshAll();
+  }, [refreshAll]);
 
   useEffect(() => {
     const generating = products.some((product) => product.videoStatus === "GENERATING");
@@ -212,7 +185,6 @@ export default function Home() {
       if (isGeneratingScript[productId]) return;
       if (!configCheck.hasOpenAI) {
         showToast("Ops! Verifique sua conexão ou configuração de API.", "error");
-        setActiveTab("settings");
         return;
       }
       setIsGeneratingScript((prev) => ({ ...prev, [productId]: true }));
@@ -289,26 +261,6 @@ export default function Home() {
     [canRenderVideo, editableWebhookUrls, refreshAll, showToast],
   );
 
-  const handleSaveSettings = useCallback(async () => {
-    if (isSavingSettings) return;
-    setIsSavingSettings(true);
-    try {
-      const response = await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.message);
-      showToast("Configurações salvas com sucesso.", "success");
-      await Promise.all([loadSettings(), loadConfigCheck(), loadSummary()]);
-    } catch {
-      showToast("Ops! Verifique sua conexão ou configuração de API.", "error");
-    } finally {
-      setIsSavingSettings(false);
-    }
-  }, [isSavingSettings, loadConfigCheck, loadSettings, loadSummary, settings, showToast]);
-
   const emptyState = useMemo(
     () => (
       <p className="products-empty">
@@ -327,17 +279,13 @@ export default function Home() {
             Minerar produtos, criar roteiro IA e renderizar vídeo em um fluxo guiado.
           </p>
         </div>
-        <button
-          className={`tab-btn ${activeTab === "settings" ? "active" : ""}`}
-          onClick={() => setActiveTab((prev) => (prev === "settings" ? "dashboard" : "settings"))}
-        >
+        <Link className="tab-btn" href="/settings">
           <Settings size={16} />
-          {activeTab === "settings" ? "Voltar ao Dashboard" : "Configurações"}
-        </button>
+          Configurações
+        </Link>
       </header>
 
-      {activeTab === "dashboard" ? (
-        <section className="dashboard-view">
+      <section className="dashboard-view">
           <div className="summary-grid">
             <article className="summary-card">
               <div className="summary-icon">
@@ -373,6 +321,10 @@ export default function Home() {
               {isScraping ? <Loader2 size={16} className="spin" /> : <Search size={16} />}
               {isScraping ? "Buscando produtos..." : "Atualizar Tendências"}
             </button>
+            <Link className="tab-btn" href="/settings">
+              <Settings size={16} />
+              Inserir APIs
+            </Link>
           </div>
 
           {products.length === 0 ? (
@@ -515,106 +467,6 @@ export default function Home() {
             </div>
           )}
         </section>
-      ) : (
-        <section className="settings-view">
-          <h2 className="settings-title">Configurações de Integração</h2>
-          <p className="settings-subtitle">
-            Cole suas chaves aqui. Você não precisa editar arquivos de código.
-          </p>
-
-          <div className="settings-form">
-            <label className="field-label">OpenAI API Key</label>
-            <input
-              className="webhook-input"
-              type="password"
-              value={settings.openaiApiKey}
-              onChange={(event) =>
-                setSettings((prev) => ({ ...prev, openaiApiKey: event.target.value }))
-              }
-            />
-
-            <label className="field-label">Creatomate API Key</label>
-            <input
-              className="webhook-input"
-              type="password"
-              value={settings.creatomateApiKey}
-              onChange={(event) =>
-                setSettings((prev) => ({ ...prev, creatomateApiKey: event.target.value }))
-              }
-            />
-
-            <label className="field-label">Creatomate Webhook Secret</label>
-            <input
-              className="webhook-input"
-              type="password"
-              value={settings.creatomateWebhookSecret}
-              onChange={(event) =>
-                setSettings((prev) => ({
-                  ...prev,
-                  creatomateWebhookSecret: event.target.value,
-                }))
-              }
-            />
-
-            <label className="field-label">ElevenLabs Voice ID</label>
-            <input
-              className="webhook-input"
-              type="text"
-              value={settings.elevenlabsVoiceId}
-              onChange={(event) =>
-                setSettings((prev) => ({ ...prev, elevenlabsVoiceId: event.target.value }))
-              }
-            />
-
-            <label className="field-label">ElevenLabs Model ID</label>
-            <input
-              className="webhook-input"
-              type="text"
-              value={settings.elevenlabsModelId}
-              onChange={(event) =>
-                setSettings((prev) => ({ ...prev, elevenlabsModelId: event.target.value }))
-              }
-            />
-
-            <label className="field-label">Webhook URL padrão (opcional)</label>
-            <input
-              className="webhook-input"
-              type="url"
-              value={settings.renderWebhookUrl}
-              onChange={(event) =>
-                setSettings((prev) => ({ ...prev, renderWebhookUrl: event.target.value }))
-              }
-            />
-
-            <label className="field-label">Créditos disponíveis</label>
-            <input
-              className="webhook-input"
-              type="number"
-              min={0}
-              value={settings.creditsAvailable}
-              onChange={(event) =>
-                setSettings((prev) => ({
-                  ...prev,
-                  creditsAvailable: Number(event.target.value || 0),
-                }))
-              }
-            />
-
-            <button
-              className="primary-btn"
-              disabled={isSavingSettings}
-              onClick={handleSaveSettings}
-            >
-              {isSavingSettings ? (
-                <Loader2 size={16} className="spin" />
-              ) : (
-                <Save size={16} />
-              )}
-              {isSavingSettings ? "Salvando..." : "Salvar Configurações"}
-            </button>
-          </div>
-        </section>
-      )}
 
       {toast.visible ? (
         <div className={`toast ${toast.type === "error" ? "toast-error" : "toast-success"}`}>

@@ -9,3 +9,284 @@ body {
 * {
   box-sizing: border-box;
 }
+
+.home-page {
+  min-height: 100vh;
+  background: #0b1220;
+  color: #e5e7eb;
+  font-family: Inter, "Poppins", sans-serif;
+  padding: 1.25rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.page-subtitle {
+  margin: 0.35rem 0 0;
+  color: #94a3b8;
+  font-size: 0.92rem;
+}
+
+.dashboard-view,
+.settings-view {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.summary-card {
+  background: #101a2c;
+  border: 1px solid #1f2a44;
+  border-radius: 12px;
+  padding: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.summary-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #1b2944;
+  color: #60a5fa;
+}
+
+.summary-label {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.summary-value {
+  font-size: 1.2rem;
+}
+
+.actions-row {
+  margin-bottom: 1rem;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 0.75rem;
+}
+
+.product-card {
+  background: #101a2c;
+  border: 1px solid #1f2a44;
+  border-radius: 12px;
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.product-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #0f172a;
+}
+
+.product-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.product-meta,
+.status-line,
+.products-empty,
+.progress-text {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.field-label {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.script-textarea,
+.webhook-input {
+  width: 100%;
+  background: #0b1220;
+  color: #e5e7eb;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.script-textarea {
+  resize: vertical;
+}
+
+.primary-btn,
+.secondary-btn,
+.ghost-btn,
+.tab-btn,
+.download-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.58rem 0.8rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.primary-btn {
+  background: #2563eb;
+  color: #fff;
+}
+
+.secondary-btn {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+.ghost-btn,
+.tab-btn {
+  background: transparent;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+
+.tab-btn.active {
+  background: #1e293b;
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled,
+.ghost-btn:disabled,
+.tab-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #1f2937;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #22d3ee);
+  transition: width 0.2s ease;
+}
+
+.download-link {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.video-preview {
+  width: 100%;
+  border-radius: 10px;
+  background: #000;
+}
+
+.error-text {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 0.82rem;
+}
+
+.settings-title {
+  margin: 0;
+}
+
+.settings-subtitle {
+  margin: 0.35rem 0 1rem;
+  color: #94a3b8;
+}
+
+.settings-form {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 780px;
+  background: #101a2c;
+  border: 1px solid #1f2a44;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.72rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid;
+  font-size: 0.88rem;
+}
+
+.toast-success {
+  background: #052e16;
+  border-color: #166534;
+  color: #d1fae5;
+}
+
+.toast-error {
+  background: #450a0a;
+  border-color: #b91c1c;
+  color: #fecaca;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
