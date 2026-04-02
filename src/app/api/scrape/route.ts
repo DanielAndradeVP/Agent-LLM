@@ -27,7 +27,8 @@ export async function POST(request: Request) {
       },
       { status: 200 },
     );
-  } catch {
+  } catch (error) {
+    console.error("[api/scrape] failed:", error);
     return NextResponse.json(
       { message: "Ops! Verifique sua conexão ou configuração de API." },
       { status: 500 },
