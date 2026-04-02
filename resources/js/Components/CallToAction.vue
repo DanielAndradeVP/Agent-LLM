@@ -32,9 +32,8 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
 
 const props = defineProps({
   href: { type: String, default: '/schedule' },       // rota padrão
@@ -42,9 +41,9 @@ const props = defineProps({
   showUrgency: { type: Boolean, default: true },     // ativa micro-copy de urgência
 });
 
-const onClick = (e) => {
+const onClick = () => {
   // Evento simples para analytics ou debug — você pode trocar por integração real
-  try { console.log('CTA clicked — navigating to', props.href); } catch (err) {}
+  console.log('CTA clicked — navigating to', props.href);
 };
 </script>
 

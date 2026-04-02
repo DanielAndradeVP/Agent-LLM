@@ -10,7 +10,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import Button from '@/Components/Button.vue';
 
 const phone = '+1857287035';

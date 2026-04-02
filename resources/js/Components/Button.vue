@@ -11,7 +11,7 @@
   </component>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, useAttrs } from 'vue';
 
 const props = defineProps({
@@ -19,11 +19,11 @@ const props = defineProps({
   type: {
     type: String,
     default: 'primary',
-    validator: (val) => ['primary', 'secondary', 'ai', 'cta', 'call'].includes(val),
+    validator: (val: unknown) => ['primary', 'secondary', 'ai', 'cta', 'call'].includes(String(val)),
   },
   target: { type: String, default: '_self' },
   disabled: { type: Boolean, default: false },
-  size: { type: String, default: 'md', validator: v => ['sm','md','lg'].includes(v) }
+  size: { type: String, default: 'md', validator: (v: unknown) => ['sm', 'md', 'lg'].includes(String(v)) }
 });
 
 const attrs = useAttrs();

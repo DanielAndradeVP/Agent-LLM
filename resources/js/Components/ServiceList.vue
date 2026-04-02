@@ -51,7 +51,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import Card from '@/Components/Card.vue';
 </script>
 

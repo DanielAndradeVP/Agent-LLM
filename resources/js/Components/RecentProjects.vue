@@ -27,12 +27,13 @@
   </section>
 </template>
 
-<script setup>
-const handleUpload = (event, index) => {
-  const file = event.target.files[0];
-  if (!file) return;
+<script setup lang="ts">
+const handleUpload = (event: Event, index: number) => {
+  const input = event.target as HTMLInputElement | null;
+  const file = input?.files?.[0];
 
-  console.log("uploaded:", file.name, "in card", index);
+  if (!file) return;
+  console.log('uploaded:', file.name, 'in card', index);
 };
 </script>
 
