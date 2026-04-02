@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Allow Cursor Cloud ingress domains to access dev assets/HMR.
+  allowedDevOrigins: ["agent.cvm.dev", "*.agent.cvm.dev"],
 };
 
 export default nextConfig;
