@@ -48,9 +48,14 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 },
     );
-  } catch {
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : "Ops! Verifique sua conexão ou configuração de API.";
+    console.error("[api/generate-script] failed:", error);
     return NextResponse.json(
-      { message: "Ops! Verifique sua conexão ou configuração de API." },
+      { message },
       { status: 500 },
     );
   }

@@ -203,8 +203,12 @@ export default function Home() {
           ),
         );
         showToast(data.message, "success");
-      } catch {
-        showToast("Ops! Verifique sua conexão ou configuração de API.", "error");
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Ops! Verifique sua conexão ou configuração de API.";
+        showToast(message, "error");
       } finally {
         setIsGeneratingScript((prev) => ({ ...prev, [productId]: false }));
       }

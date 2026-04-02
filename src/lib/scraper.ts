@@ -29,8 +29,7 @@ const FALLBACK_PRODUCTS: ScrapedProduct[] = [
   {
     title: "Mini Impressora Térmica Bluetooth Portátil",
     price: "R$ 89,90",
-    imageUrl:
-      "https://images.unsplash.com/photo-1586953208448-b95a79798f07?auto=format&fit=crop&w=800&q=80",
+    imageUrl: "https://placehold.co/640x640/0b1220/e5e7eb?text=Mini+Impressora+Termica",
     salesCount: 4200,
     productUrl: "https://shop.local/fallback/mini-impressora-termica",
     description: "Impressora térmica compacta para etiquetas, estudos e organização diária.",
@@ -38,8 +37,7 @@ const FALLBACK_PRODUCTS: ScrapedProduct[] = [
   {
     title: "Umidificador LED com Difusor de Aroma",
     price: "R$ 74,90",
-    imageUrl:
-      "https://images.unsplash.com/photo-1603791440384-56cd371ee9a7?auto=format&fit=crop&w=800&q=80",
+    imageUrl: "https://placehold.co/640x640/0b1220/e5e7eb?text=Umidificador+LED",
     salesCount: 3100,
     productUrl: "https://shop.local/fallback/umidificador-led-aroma",
     description: "Umidificador silencioso com luz ambiente para quarto e escritório.",
@@ -47,8 +45,7 @@ const FALLBACK_PRODUCTS: ScrapedProduct[] = [
   {
     title: "Escova Secadora 5 em 1 Profissional",
     price: "R$ 129,90",
-    imageUrl:
-      "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80",
+    imageUrl: "https://placehold.co/640x640/0b1220/e5e7eb?text=Escova+Secadora+5x1",
     salesCount: 5600,
     productUrl: "https://shop.local/fallback/escova-secadora-5-em-1",
     description: "Modela, seca e dá volume em minutos, ideal para vídeos de demonstração.",
