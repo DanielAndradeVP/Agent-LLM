@@ -12,6 +12,7 @@ interface TikTokProductCard {
     images: string[];
     original_post_url: string;
     seller_link: string;
+    price: number;
     metrics: {
         views: number;
         sales: number;
@@ -29,6 +30,7 @@ interface MinerPagination {
 interface ApiSettingsState {
     openaiConfigured: boolean;
     didConfigured: boolean;
+    tiktokConfigured: boolean;
 }
 
 interface AvatarModel {
@@ -61,9 +63,13 @@ const settingsMessage = ref('');
 const apiSettingsState = ref<ApiSettingsState>({
     openaiConfigured: false,
     didConfigured: false,
+    tiktokConfigured: false,
 });
 const openaiApiKeyInput = ref('');
 const didApiKeyInput = ref('');
+const tiktokAppKeyInput = ref('');
+const tiktokAppSecretInput = ref('');
+const tiktokAccessTokenInput = ref('');
 
 const voiceGender = ref('Masculino');
 const voiceTone = ref('Entusiasta');
@@ -105,7 +111,9 @@ const avatars = ref<AvatarModel[]>([
 
 const selectedProduct = computed(() => products.value.find((product) => product.id === selectedProductId.value) ?? null);
 const selectedAvatar = computed(() => avatars.value.find((avatar) => avatar.id === selectedAvatarId.value) ?? null);
-const configMissing = computed(() => !apiSettingsState.value.openaiConfigured || !apiSettingsState.value.didConfigured);
+const configMissing = computed(
+    () => !apiSettingsState.value.openaiConfigured || !apiSettingsState.value.didConfigured || !apiSettingsState.value.tiktokConfigured
+);
 
 const currentModelSummary = computed(() => {
     if (uploadedFile.value) {
@@ -199,6 +207,9 @@ const saveApiSettings = async () => {
             body: JSON.stringify({
                 openaiApiKey: openaiApiKeyInput.value || undefined,
                 didApiKey: didApiKeyInput.value || undefined,
+                tiktokAppKey: tiktokAppKeyInput.value || undefined,
+                tiktokAppSecret: tiktokAppSecretInput.value || undefined,
+                tiktokAccessToken: tiktokAccessTokenInput.value || undefined,
             }),
         });
         const payload = await response.json();
@@ -211,10 +222,14 @@ const saveApiSettings = async () => {
         apiSettingsState.value = {
             openaiConfigured: Boolean(payload?.data?.openaiConfigured),
             didConfigured: Boolean(payload?.data?.didConfigured),
+            tiktokConfigured: Boolean(payload?.data?.tiktokConfigured),
         };
         settingsMessage.value = payload?.message ?? 'API keys saved securely.';
         openaiApiKeyInput.value = '';
         didApiKeyInput.value = '';
+        tiktokAppKeyInput.value = '';
+        tiktokAppSecretInput.value = '';
+        tiktokAccessTokenInput.value = '';
     } catch {
         settingsError.value = 'Connection error while saving API settings.';
     } finally {
@@ -356,14 +371,14 @@ onBeforeUnmount(() => {
                     v-if="configMissing"
                     class="mt-4 rounded-2xl border border-yellow-600/60 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300"
                 >
-                    Configuracao Necessaria: salve OpenAI e D-ID na engrenagem para liberar o Gerador de Prompt.
+                    Configuracao Necessaria: salve OpenAI, D-ID e TikTok API na engrenagem para liberar o Gerador de Prompt.
                 </div>
             </header>
 
             <section class="rounded-3xl border border-zinc-800 bg-[#090909] p-5">
                 <div class="mb-4 flex items-center justify-between">
                     <div>
-                        <h2 class="text-lg font-semibold">1. Minerador TikTok Shop (Grid Compacto)</h2>
+                        <h2 class="text-lg font-semibold">1. Minerador TikTok Shop (Grid em Massa)</h2>
                         <p class="text-xs text-zinc-400">
                             Exibindo {{ products.length }} de {{ minerPagination.total }} anuncios filtrados apenas da TikTok Shop.
                         </p>
@@ -373,7 +388,7 @@ onBeforeUnmount(() => {
                 <p v-if="productsError" class="mb-3 text-sm text-red-400">{{ productsError }}</p>
                 <p v-if="loadingProducts" class="mb-3 text-sm text-zinc-400">Carregando anuncios reais...</p>
 
-                <div class="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
+                <div class="grid grid-cols-2 gap-2 md:grid-cols-5">
                     <div
                         v-for="product in products"
                         :key="product.id"
@@ -384,32 +399,23 @@ onBeforeUnmount(() => {
                                 : 'border-zinc-800 hover:border-zinc-700'
                         "
                     >
-                        <button class="h-28 w-full" @click="selectedProductId = product.id">
+                        <button class="h-24 w-full" @click="selectedProductId = product.id">
                             <img :src="product.image" :alt="product.name" class="h-full w-full object-cover" />
                         </button>
 
-                        <div class="space-y-2 p-3 text-xs">
+                        <div class="space-y-1.5 p-2 text-[11px]">
                             <p class="line-clamp-1 font-semibold">{{ product.name }}</p>
-                            <p class="text-zinc-400">Product ID: <span class="text-zinc-200">{{ product.product_id }}</span></p>
                             <p class="text-zinc-400">Sales: <span class="font-semibold text-[#39ff14]">{{ formatMetric(product.metrics.sales) }}</span></p>
-                            <p class="text-zinc-500 line-clamp-1">{{ product.category }}</p>
+                            <p class="text-zinc-400">Price: <span class="font-semibold text-[#39ff14]">${{ product.price.toFixed(2) }}</span></p>
 
-                            <div class="grid grid-cols-1 gap-1">
+                            <div class="grid grid-cols-1 gap-1 text-[10px]">
                                 <a
                                     :href="product.original_post_url"
                                     target="_blank"
                                     rel="noreferrer"
                                     class="rounded-lg border border-zinc-700 px-2 py-1 text-center hover:border-[#39ff14] hover:text-[#39ff14]"
                                 >
-                                    Viral Post
-                                </a>
-                                <a
-                                    :href="product.seller_link"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    class="rounded-lg border border-zinc-700 px-2 py-1 text-center hover:border-[#39ff14] hover:text-[#39ff14]"
-                                >
-                                    Seller Link
+                                    Original Post
                                 </a>
                                 <button
                                     class="rounded-lg bg-[#39ff14] px-2 py-1 font-semibold text-black transition hover:bg-[#2fda10]"
@@ -570,9 +576,9 @@ onBeforeUnmount(() => {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
         @click.self="settingsModalOpen = false"
     >
-        <div class="w-full max-w-xl rounded-2xl border border-zinc-700 bg-[#0b0b0b] p-6">
+        <div class="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-zinc-700 bg-[#0b0b0b] p-6">
             <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold">Configurar APIs (OpenAI + D-ID)</h3>
+                <h3 class="text-lg font-semibold">Configurar APIs (OpenAI + D-ID + TikTok)</h3>
                 <button class="text-zinc-400 hover:text-white" @click="settingsModalOpen = false">✕</button>
             </div>
 
@@ -600,6 +606,36 @@ onBeforeUnmount(() => {
                         class="w-full rounded-xl border border-zinc-700 bg-black px-3 py-2"
                     />
                 </label>
+
+                <label class="block text-sm">
+                    <span class="mb-1 block text-zinc-300">TikTok App Key</span>
+                    <input
+                        v-model="tiktokAppKeyInput"
+                        type="password"
+                        placeholder="TikTok App Key"
+                        class="w-full rounded-xl border border-zinc-700 bg-black px-3 py-2"
+                    />
+                </label>
+
+                <label class="block text-sm">
+                    <span class="mb-1 block text-zinc-300">TikTok App Secret</span>
+                    <input
+                        v-model="tiktokAppSecretInput"
+                        type="password"
+                        placeholder="TikTok App Secret"
+                        class="w-full rounded-xl border border-zinc-700 bg-black px-3 py-2"
+                    />
+                </label>
+
+                <label class="block text-sm">
+                    <span class="mb-1 block text-zinc-300">TikTok Access Token</span>
+                    <input
+                        v-model="tiktokAccessTokenInput"
+                        type="password"
+                        placeholder="TikTok Access Token"
+                        class="w-full rounded-xl border border-zinc-700 bg-black px-3 py-2"
+                    />
+                </label>
             </div>
 
             <div class="mt-3 text-xs text-zinc-500">
@@ -610,6 +646,10 @@ onBeforeUnmount(() => {
                 |
                 <span :class="apiSettingsState.didConfigured ? 'text-[#39ff14]' : 'text-yellow-300'">
                     D-ID {{ apiSettingsState.didConfigured ? 'OK' : 'Pendente' }}
+                </span>
+                |
+                <span :class="apiSettingsState.tiktokConfigured ? 'text-[#39ff14]' : 'text-yellow-300'">
+                    TikTok {{ apiSettingsState.tiktokConfigured ? 'Conectado' : 'Pendente' }}
                 </span>
             </div>
 

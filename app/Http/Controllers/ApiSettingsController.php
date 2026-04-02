@@ -10,13 +10,13 @@ class ApiSettingsController extends Controller
 {
     public function show()
     {
-        $setting = ApiSetting::query()->first();
-
         return response()->json([
             'data' => [
-                'openaiConfigured' => ! blank($setting?->openai_api_key),
-                'didConfigured' => ! blank($setting?->did_api_key),
-                'warningRequired' => blank($setting?->openai_api_key) || blank($setting?->did_api_key),
+                'openaiConfigured' => ! blank(ApiSetting::getValue('openai_api_key')),
+                'didConfigured' => ! blank(ApiSetting::getValue('did_api_key')),
+                'tiktokConfigured' => ! blank(ApiSetting::getValue('tiktok_app_key'))
+                    && ! blank(ApiSetting::getValue('tiktok_app_secret'))
+                    && ! blank(ApiSetting::getValue('tiktok_access_token')),
             ],
         ]);
     }
@@ -27,6 +27,9 @@ class ApiSettingsController extends Controller
             $validated = $request->validate([
                 'openaiApiKey' => ['nullable', 'string', 'max:5000'],
                 'didApiKey' => ['nullable', 'string', 'max:5000'],
+                'tiktokAppKey' => ['nullable', 'string', 'max:5000'],
+                'tiktokAppSecret' => ['nullable', 'string', 'max:5000'],
+                'tiktokAccessToken' => ['nullable', 'string', 'max:10000'],
             ]);
         } catch (ValidationException $exception) {
             return response()->json([
@@ -35,23 +38,19 @@ class ApiSettingsController extends Controller
             ], 422);
         }
 
-        $setting = ApiSetting::query()->firstOrNew(['id' => 1]);
-
-        if (! empty($validated['openaiApiKey'])) {
-            $setting->openai_api_key = $validated['openaiApiKey'];
-        }
-
-        if (! empty($validated['didApiKey'])) {
-            $setting->did_api_key = $validated['didApiKey'];
-        }
-
-        $setting->save();
+        ApiSetting::putValue('openai_api_key', $validated['openaiApiKey'] ?? null);
+        ApiSetting::putValue('did_api_key', $validated['didApiKey'] ?? null);
+        ApiSetting::putValue('tiktok_app_key', $validated['tiktokAppKey'] ?? null);
+        ApiSetting::putValue('tiktok_app_secret', $validated['tiktokAppSecret'] ?? null);
+        ApiSetting::putValue('tiktok_access_token', $validated['tiktokAccessToken'] ?? null);
 
         return response()->json([
             'data' => [
-                'openaiConfigured' => ! blank($setting->openai_api_key),
-                'didConfigured' => ! blank($setting->did_api_key),
-                'warningRequired' => blank($setting->openai_api_key) || blank($setting->did_api_key),
+                'openaiConfigured' => ! blank(ApiSetting::getValue('openai_api_key')),
+                'didConfigured' => ! blank(ApiSetting::getValue('did_api_key')),
+                'tiktokConfigured' => ! blank(ApiSetting::getValue('tiktok_app_key'))
+                    && ! blank(ApiSetting::getValue('tiktok_app_secret'))
+                    && ! blank(ApiSetting::getValue('tiktok_access_token')),
             ],
             'message' => 'API settings saved.',
         ]);

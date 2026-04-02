@@ -116,6 +116,7 @@ class TikTokShopMinerService
                 'original_post' => $postUrl,
                 'seller_handle' => $sellerHandle,
                 'seller_link' => $sellerLink,
+                'price' => (float) ($item['price'] ?? 0),
                 'metrics' => [
                     'sales' => (int) ($item['sales'] ?? 0),
                     'views' => (int) ($item['views'] ?? 0),
@@ -219,6 +220,7 @@ class TikTokShopMinerService
                 'original_post' => 'https://www.tiktok.com/@'.$sellerHandle.'/video/'.$idBase,
                 'seller_handle' => $sellerHandle,
                 'seller_link' => 'https://www.tiktok.com/@'.$sellerHandle,
+                'price' => round(14.9 + ($index * 1.35), 2),
                 'metrics' => [
                     'sales' => 900 + ($index * 133),
                     'views' => 140000 + ($index * 17000),

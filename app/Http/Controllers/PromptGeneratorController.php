@@ -41,7 +41,7 @@ class PromptGeneratorController extends Controller
             ], 422);
         }
 
-        $apiKey = ApiSetting::forServiceKey('openai_api_key') ?? config('services.openai.api_key');
+        $apiKey = ApiSetting::getValue('openai_api_key') ?? config('services.openai.api_key');
         $model = config('services.openai.model', 'gpt-4.1-mini');
 
         if (blank($apiKey)) {

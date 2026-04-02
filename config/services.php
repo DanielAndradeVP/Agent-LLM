@@ -48,4 +48,10 @@ return [
         'api_key' => env('DID_API_KEY'),
     ],
 
+    'tiktok_shop' => [
+        'app_key' => env('TIKTOK_APP_KEY'),
+        'app_secret' => env('TIKTOK_APP_SECRET'),
+        'access_token' => env('TIKTOK_ACCESS_TOKEN'),
+    ],
+
 ];
