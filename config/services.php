@@ -35,4 +35,29 @@ return [
         ],
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4.1-mini'),
+    ],
+
+    'creatomate' => [
+        'api_key' => env('CREATOMATE_API_KEY'),
+    ],
+
+    'd_id' => [
+        'api_key' => env('DID_API_KEY'),
+    ],
+
+    'tiktok_shop' => [
+        'app_key' => env('TIKTOK_APP_KEY'),
+        'app_secret' => env('TIKTOK_APP_SECRET'),
+        'access_token' => env('TIKTOK_ACCESS_TOKEN'),
+    ],
+
+    'rapidapi' => [
+        'key' => env('RAPIDAPI_KEY'),
+        'host' => env('RAPIDAPI_HOST', 'tiktok-scraper7.p.rapidapi.com'),
+        'base_url' => env('RAPIDAPI_BASE_URL', 'https://tiktok-scraper7.p.rapidapi.com'),
+    ],
+
 ];

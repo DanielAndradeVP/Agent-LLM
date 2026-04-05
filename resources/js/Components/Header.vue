@@ -19,7 +19,7 @@
   </header>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import Button from '@/Components/Button.vue';
 </script>
 

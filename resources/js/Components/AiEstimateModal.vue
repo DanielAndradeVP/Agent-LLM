@@ -25,10 +25,10 @@
   </Transition>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import Button from './Button.vue';
 
-const props = defineProps({
+defineProps({
   show: { type: Boolean, required: true },
   isLoading: { type: Boolean, default: false },
   estimateRange: { type: String, default: 'N/A' },
